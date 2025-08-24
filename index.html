@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>台電即時電廠發電量地圖</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+    /* 搜尋面板 */
+    #searchPanel {
+      position: absolute;
+      top: 10px;
+      left: 80%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      font-family: sans-serif;
+      width: 300px;
+    }
+    #searchPanel input {
+      width: 100%;
+      padding: 4px;
+      box-sizing: border-box;
+      margin-bottom: 5px;
+    }
+    #searchList {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    #searchList div {
+      padding: 4px 6px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+    #searchList div:hover {
+      background: #eee;
+    }
+    .plant-name {
+      font-weight: bold;
+    }
+    .plant-generation {
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;">⚡ 台灣即時電廠發電量地圖 </h2>
+
+  <!-- 搜尋面板 -->
+<div id="searchPanel">
+    <input type="text" id="searchInput" placeholder="搜尋電廠名稱..." />
+    <div id="searchList"></div>
+  </div>
+<div id="clock"></div>
+  <!-- 及時發電量 -->
+<div id="infoPanel">
+  <div id="clock"></div>
+  <div id="totalGeneration">總發電量: 0 MW</div>
+</div>
+
+<!-- 時鐘面板 -->
+<style>
+  #clock {
+    position: absolute;
+    top: 20px;
+    left: 10px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.7); /* 半透明白色 */
+    backdrop-filter: blur(5px); /* 背景模糊效果 */
+    padding: 6px 12px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: 25px;
+    color: #333;
+  }
+</style>
+
+
+<!-- 發電量面板 -->
+<style>
+  #infoPanel {
+    position: absolute;
+    top: 20px;
+    left: 200px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.7); /* 半透明白色 */
+    backdrop-filter: blur(5px); /* 背景模糊效果 */
+    padding: 6px 12px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-family: sans-serif;
+    font-weight: bold;
+    font-size: 25px;
+    color: #333;
+  }
+
+  #clock {
+    font-size: 16px;
+  }
+
+  #totalGeneration {
+    font-size: 16px;
+  }
+</style>
+<script>
+  var markers = [];
+
+  // 更新時鐘
+  function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('zh-TW', {hour12: false});
+    document.getElementById("clock").textContent = timeString;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // 抓取電廠資料並更新地圖和總發電量
+  function fetchPowerData() {
+    fetch("http://localhost:8787/api/power")
+      .then(res => res.json())
+      .then(data => {
+        let total = 0;
+
+        data.forEach((plant, i) => {
+          var generation = plant.generation || 0;
+          var capacity = plant.capacity || 0;
+          total += generation;
+
+          if (markers[i]) {
+            // 已有 marker，更新 popup
+            markers[i].marker.setPopupContent(`<b>${plant.name}</b><br>即時發電量：${generation} MW</b><br>裝置容量：${capacity} MW`);
+            markers[i].generation = generation;
+          } else {
+            // 沒有 marker，新增
+            var marker = L.marker([plant.lat, plant.lng]).addTo(map);
+            marker.bindPopup(`<b>${plant.name}</b><br>即時發電量：${generation} MW</b><br>裝置容量：${capacity} MW`);
+            markers.push({name: plant.name, generation: generation, marker: marker});
+          }
+        });
+
+        document.getElementById("totalGeneration").textContent = `總發電量: ${total.toLocaleString()} MW`;
+
+        updateList(); // 更新搜尋列表
+      })
+      .catch(err => console.error("抓取台電 API 失敗", err));
+  }
+
+  // 初始化抓取
+  fetchPowerData();
+
+  // 每 60 秒刷新一次
+  setInterval(fetchPowerData, 60000);
+</script>
+
+<script>
+  function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('zh-TW', {hour12: false});
+    document.getElementById("clock").textContent = timeString;
+  }
+
+  updateClock(); // 初始化
+  setInterval(updateClock, 1000); // 每秒更新
+</script>
+  <div id="map"></div>
+  
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    var map = L.map('map').setView([23.6978, 120.9605], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    var markers = [];
+
+
+
+
+
+    var searchInput = document.getElementById("searchInput");
+    var searchList = document.getElementById("searchList");
+
+    // 即時篩選
+    searchInput.addEventListener("input", updateList);
+
+    function updateList() {
+      var query = searchInput.value.trim().toLowerCase();
+      searchList.innerHTML = "";
+
+      // 篩選並依名稱排序
+      var filtered = markers
+        .filter(m => m.name.toLowerCase().includes(query))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      filtered.forEach(m => {
+        var div = document.createElement("div");
+        div.innerHTML = `<span class="plant-name">${m.name}</span><span class="plant-generation">${m.generation} MW</span>`;
+        div.addEventListener("click", () => {
+          map.setView(m.marker.getLatLng(), 12);
+          m.marker.openPopup();
+        });
+        searchList.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
