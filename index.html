@@ -130,7 +130,7 @@
 
   // 抓取電廠資料並更新地圖和總發電量
   function fetchPowerData() {
-    fetch("http://localhost:8787/api/power")
+    fetch("https://my-power-map.onrender.com/api/powerhttps://my-power-map.onrender.com/api/power")
       .then(res => res.json())
       .then(data => {
         let total = 0;
@@ -221,3 +221,4 @@
   </script>
 </body>
 </html>
+
